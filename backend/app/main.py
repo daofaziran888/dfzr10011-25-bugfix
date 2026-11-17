@@ -5,11 +5,13 @@
 """
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.routers import ROUTERS
+from app.services.errors import ServiceError
 from app.store import store
 
 app = FastAPI(title="分布式采集调度引擎", version="1.0.0")
@@ -21,6 +23,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(ServiceError)
+async def service_error_handler(request: Request, exc: ServiceError) -> JSONResponse:
+    """服务层抛出的业务异常统一转成带明确语义的 HTTP 响应。"""
+    return JSONResponse(status_code=exc.status_code, content={"ok": False, "message": exc.message})
+
 
 for module in ROUTERS:
     app.include_router(module.router)
